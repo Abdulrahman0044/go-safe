@@ -7,12 +7,12 @@ import os
 import json
 from dotenv import load_dotenv
 
+# Load environment variables from .env file
 load_dotenv()
-openai_key = os.environ.get("OPENAI_API_KEY")
 
 class EvacuationPlanner:
-    def __init__(self, db_path="./data/evacuation_db", cache_path="./data/cached_plans.json", openai_key=None):
-        # Initialize ChromaDB with specific path (raw string to handle backslashes)
+    def __init__(self, db_path=r"C:\Users\Abdulrahman A\go-safe\data\evacuation_db", cache_path=r"C:\Users\Abdulrahman A\go-safe\data\cached_plans.json", openai_key=None):
+        # Initialize ChromaDB with specific path
         self.client = chromadb.PersistentClient(path=db_path)
         self.collection = self.client.get_collection("evacuation_data")
         
@@ -20,7 +20,7 @@ class EvacuationPlanner:
         self.embeddings = OllamaEmbeddings(model="llama3.1", base_url="http://localhost:11434")
         
         # Initialize OpenAI (optional, cloud-based)
-        self.openai_key = openai_key or os.environ.get("OPENAI_API_KEY", "")
+        self.openai_key = openai_key or os.getenv("OPENAI_API_KEY", "")
         self.llm = OpenAI(api_key=self.openai_key, model="gpt-3.5-turbo-instruct") if self.openai_key else None
         
         # Load cached responses (offline fallback)
@@ -42,29 +42,7 @@ class EvacuationPlanner:
             Ensure the plan is clear, actionable, and tailored to the user's specific needs.
             """
         )
-        self.chain = LLMChain(llm=self.llm, prompt=prompt_template) if self.llm else None
-
-    def process_with_mimik(self, metadata):
-        """Placeholder for mimik edge processing."""
-        # Hypothetical mimik integration; adjust per SDK
-        try:
-            mimik_token = os.environ.get("MIMIK_TOKEN")
-            if not mimik_token:
-                raise ValueError("MIMIK_TOKEN not found in .env file")
-            edge_client = EdgeClient(access_token=mimik_token)
-            roads = json.loads(metadata["roads"])
-            user_needs = metadata["user_needs"]
-            filtered_roads = [r for r in roads if user_needs != "wheelchair" or r["accessible"]]
-            edge_client.deploy_microservice(
-                service_name="evacuation_filter",
-                data={"roads": filtered_roads}
-            )
-            return filtered_roads
-        except ImportError:
-            # Fallback if mimik SDK unavailable
-            roads = json.loads(metadata["roads"])
-            user_needs = metadata["user_needs"]
-            return [r for r in roads if user_needs != "wheelchair" or r["accessible"]]
+        self.chain = LLMChain(llm=self.llm, prompt=self.prompt_template) if self.llm else None
 
     def get_evacuation_plan(self, query, user_needs="none"):
         """Generate an evacuation plan based on query and user needs."""
@@ -79,16 +57,18 @@ class EvacuationPlanner:
                 include=["metadatas"]
             )
             
-            # Extract context
+            # Extract context directly from metadata (no mimik processing)
             metadata = result["metadatas"][0][0]
-            roads = self.process_with_mimik(metadata)  # mimik edge processing
+            roads = json.loads(metadata["roads"])  # Use raw roads data
+            if not roads:  # Handle empty roads case
+                roads = [{"name": "unknown", "safe_zone": "nearest shelter"}]
             context = (
                 f"User at {metadata['user_location']}, fire at {metadata['fire_location']}, "
                 f"roads: {json.dumps(roads)}, updates: {metadata['nearby_updates']}"
             )
             
             # Generate plan
-            if self.llm and os.environ.get("ONLINE_MODE"):  # Check if online mode enabled
+            if self.llm and os.getenv("ONLINE_MODE"):  # Check if online mode enabled
                 plan = self.chain.run(context=context, user_needs=user_needs, query=query)
             else:  # Offline fallback
                 key = f"{metadata['user_location']}_{metadata['fire_location']}_{user_needs}"
@@ -103,12 +83,11 @@ class EvacuationPlanner:
             return f"Error generating plan: {str(e)}"
 
 # Standalone usage (for testing)
-## Comment out for actual deployment
 if __name__ == "__main__":
     planner = EvacuationPlanner(
-        db_path="./data/evacuation_db",
-        cache_path="./data/cached_plans.json",
-        openai_key=openai_key # Optional; omit for offline-only
+        db_path=r"C:\Users\Abdulrahman A\go-safe\data\evacuation_db",
+        cache_path=r"C:\Users\Abdulrahman A\go-safe\data\cached_plans.json",
+        openai_key="your-openai-api-key"  # Optional; omit for offline-only
     )
     query = "I need an evacuation route from Downtown LA with a fire on Highway 101"
     plan = planner.get_evacuation_plan(query, user_needs="wheelchair")
