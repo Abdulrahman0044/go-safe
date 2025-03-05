@@ -66,6 +66,7 @@ go-safe\
 │   ├── processed_data.json  # Mimik-processed data
 │   └── cached_plans.json   # Precomputed offline plans
 ├── model.py                # Standalone RAG logic
+├── app.py                  # backend logic
 ├── generate_cached_plans.py # Script to create cached_plans.json
 ├── .gitignore
 ├── mimik_process.py        # Script to process synthetic data
@@ -125,7 +126,7 @@ plan = planner.get_evacuation_plan("Evacuate from Downtown LA, fire on Highway 1
 print(plan)
 ```
 
-### Mobile Integration
+### Mobile Integration (Flutter)
 
 - **Input:** Pass `query` (string) and `user_needs` (string, default "none") to `get_evacuation_plan`.
 - **Output:** Returns a string (plan or error).
@@ -133,13 +134,56 @@ print(plan)
 
 ---
 
-## Deployment Notes for Mobile Developer
+## Deployment Notes for Mobile Developer (Flutter)
 
-### Framework Suggestion
+### Framework
 
-- **Kivy**: Cross-platform Python framework for Android/iOS.
-- **Install**: `pip install kivy buildozer`.
-- **Build APK**: Use `buildozer.spec` (example available in prior steps).
+- **Flutter**: Dart-based framework for Android/iOS.
+- **Install**: [flutter.dev](https://flutter.dev).
+- **Setup**: Install Flutter SDK, Dart, and an IDE (e.g., VS Code, Android Studio).
+
+### Basic Flutter Example
+
+#### Create a Flutter Project:
+
+```bash
+flutter create gosafe_app
+cd gosafe_app
+```
+
+#### Update `pubspec.yaml`:
+
+```yaml
+name: gosafe_app
+description: GoSafe Evacuation Planner
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^1.2.0  # Optional for online API calls
+
+flutter:
+  assets:
+    - assets/cached_plans.json
+```
+
+#### Copy `cached_plans.json`:
+
+Place `path to ./data/cached_plans.json` into `gosafe_app/assets/`.
+
+### Build APK:
+
+```bash
+flutter run --release
+```
+
+Or:
+
+```bash
+flutter build apk
+```
+
+---
 
 ### Requirements
 
@@ -168,3 +212,8 @@ python-dotenv
 
 - **Offline**: Uses ChromaDB and `cached_plans.json`.
 - **Online**: Enable OpenAI with `ONLINE_MODE=1` env var.
+- **Online (Optional)**: Run `model.py` as a local server (e.g., Flask) on your machine, call via HTTP:
+```bash
+python app.py
+```
+
