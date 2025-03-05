@@ -211,7 +211,7 @@ python-dotenv
 ### Offline vs. Online
 
 - **Offline**: Uses ChromaDB and `cached_plans.json`.
-- **Online**: Enable OpenAI with `ONLINE_MODE=1` env var.
+- **Online**: Enable Groq with `ONLINE_MODE=1` env var.
 - **Online (Optional)**: Run `model.py` as a local server (e.g., Flask) on your machine, call via HTTP:
 ```bash
 python app.py

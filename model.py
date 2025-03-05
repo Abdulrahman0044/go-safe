@@ -1,6 +1,6 @@
 import chromadb
 from langchain_community.embeddings import OllamaEmbeddings
-from langchain_openai import OpenAI
+from langchain_groq import ChatGroq  # Groq integration
 from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
 import os
@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class EvacuationPlanner:
-    def __init__(self, db_path=r"C:\Users\Abdulrahman A\go-safe\data\evacuation_db", cache_path=r"C:\Users\Abdulrahman A\go-safe\data\cached_plans.json", openai_key=None):
+    def __init__(self, db_path=r"C:\Users\Abdulrahman A\go-safe\data\evacuation_db", cache_path=r"C:\Users\Abdulrahman A\go-safe\data\cached_plans.json", groq_api_key=None):
         # Initialize ChromaDB with specific path
         self.client = chromadb.PersistentClient(path=db_path)
         self.collection = self.client.get_collection("evacuation_data")
@@ -19,9 +19,12 @@ class EvacuationPlanner:
         # Initialize embeddings (local with Ollama)
         self.embeddings = OllamaEmbeddings(model="llama3.1", base_url="http://localhost:11434")
         
-        # Initialize OpenAI (optional, cloud-based)
-        self.openai_key = openai_key or os.getenv("OPENAI_API_KEY", "")
-        self.llm = OpenAI(api_key=self.openai_key, model="gpt-3.5-turbo-instruct") if self.openai_key else None
+        # Initialize Groq LLM (optional, cloud-based)
+        self.groq_api_key = groq_api_key or os.getenv("GROQ_API_KEY", "")
+        self.llm = ChatGroq(
+            api_key=self.groq_api_key,
+            model="mixtral-8x7b-32768"  # Example Groq model; adjust as needed
+        ) if self.groq_api_key else None
         
         # Load cached responses (offline fallback)
         try:
@@ -57,7 +60,7 @@ class EvacuationPlanner:
                 include=["metadatas"]
             )
             
-            # Extract context directly from metadata (no mimik processing)
+            # Extract context directly from metadata
             metadata = result["metadatas"][0][0]
             roads = json.loads(metadata["roads"])  # Use raw roads data
             if not roads:  # Handle empty roads case
@@ -87,7 +90,7 @@ if __name__ == "__main__":
     planner = EvacuationPlanner(
         db_path=r"C:\Users\Abdulrahman A\go-safe\data\evacuation_db",
         cache_path=r"C:\Users\Abdulrahman A\go-safe\data\cached_plans.json",
-        openai_key="your-openai-api-key"  # Optional; omit for offline-only
+        groq_api_key="your-groq-api-key"  # Optional; omit for offline-only
     )
     query = "I need an evacuation route from Downtown LA with a fire on Highway 101"
     plan = planner.get_evacuation_plan(query, user_needs="wheelchair")
