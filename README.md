@@ -52,21 +52,28 @@ The core logic resides in `model.py`, a standalone module that a mobile develope
 - **mimik SDK**: Obtain from [developer.mimik.com](https://developer.mimik.com/).
 - **OpenAI API Key**: Optional, from [platform.openai.com](https://platform.openai.com/).
 
+---
+
 ## Project structure
 
-\go-safe\
+```
+go-safe\
 ├── .env                    # Environment variables (MIMIK_TOKEN, OPENAI KEY, LANGCHAIN)
-├── venv                    # virtual environment
+├── venv                    # Virtual environment
 ├── data\                   # Data directory
 │   ├── evacuation_db\      # ChromaDB local storage
 │   ├── synthetic_data.json  # Original synthetic data
-│   ├── processed_data.json  # mimik-processed data
+│   ├── processed_data.json  # Mimik-processed data
 │   └── cached_plans.json   # Precomputed offline plans
-├── model.py           # Standalone RAG logic
-├── generate_cached_plans.py  # Script to create cached_plans.json
+├── model.py                # Standalone RAG logic
+├── generate_cached_plans.py # Script to create cached_plans.json
 ├── .gitignore
-├── mimik_process.py  # Script to process synthetic data
+├── mimik_process.py        # Script to process synthetic data
 └── README.md               # This file
+
+```
+
+---
 
 ## Setup Instructions
 
@@ -77,15 +84,87 @@ The core logic resides in `model.py`, a standalone module that a mobile develope
 1. **Configure Environment**
    - Create `.env` in the root directory:
 
-   MIMIK_TOKEN=your-mimik-token-here
-   OPENAI_API_KEY=your-openai-api-key-here  # Optional
-   LANGCHAIN_TRACING_V2=true
-   LANGCHAIN_ENDPOINT="https://api.smith.langchain.com"
-   LANGCHAIN_API_KEY="replace with your actual api key"
-   LANGCHAIN_PROJECT="pr-reflecting-starter-78"
+   ```
+    MIMIK_TOKEN=your-mimik-token-here
+    OPENAI_API_KEY=your-openai-api-key-here  # Optional
+    LANGCHAIN_TRACING_V2=true
+    LANGCHAIN_ENDPOINT="https://api.smith.langchain.com"
+    LANGCHAIN_API_KEY="replace with your actual api key"
+    LANGCHAIN_PROJECT="pr-reflecting-starter-78"
+    ```
 
 1. **Generate Data (If Missing)**
-- **Synthetic Data**: If `synthetic_data.json` isn’t present, refer to earlier steps to generate it with Ollama/LangChain (not included here).
-- **Processed Data**: Run:
+- **Synthetic Data**: If `synthetic_data.json` isn’t present, Run:
 ```bash
-python simulate_mimik_processing.py
+cd data && python data.py
+```
+
+- **Processed Data**: Run, if the data is not found:
+```bash
+python mimik_process.py
+```
+
+- **Cached Data**: Run, if the data is not found:
+```bash
+python generate_cached_plans.py
+```
+
+---
+
+## Usage
+
+### Standalone Testing
+
+In Python:
+
+```python
+from model import EvacuationPlanner
+
+planner = EvacuationPlanner()
+plan = planner.get_evacuation_plan("Evacuate from Downtown LA, fire on Highway 101", "wheelchair")
+print(plan)
+```
+
+### Mobile Integration
+
+- **Input:** Pass `query` (string) and `user_needs` (string, default "none") to `get_evacuation_plan`.
+- **Output:** Returns a string (plan or error).
+- **Dependencies:** Bundle `evacuation_db/` and `cached_plans.json` with the app
+
+---
+
+## Deployment Notes for Mobile Developer
+
+### Framework Suggestion
+
+- **Kivy**: Cross-platform Python framework for Android/iOS.
+- **Install**: `pip install kivy buildozer`.
+- **Build APK**: Use `buildozer.spec` (example available in prior steps).
+
+### Requirements
+
+Included in `requirements.txt`:
+
+```
+chromadb
+langchain
+langchain-community
+langchain-openai
+python-dotenv
+```
+
+### Bundle:
+
+- `evacuation_db/`
+- `cached_plans.json`
+- `.env` (with `MIMIK_TOKEN`)
+
+### mimik Integration
+
+- Replace `process_with_mimik` placeholder with actual SDK calls (see mimik mobile docs).
+- Ensure mimik’s `edgeEngine` runs on-device.
+
+### Offline vs. Online
+
+- **Offline**: Uses ChromaDB and `cached_plans.json`.
+- **Online**: Enable OpenAI with `ONLINE_MODE=1` env var.
