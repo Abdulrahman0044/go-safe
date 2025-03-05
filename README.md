@@ -67,3 +67,25 @@ The core logic resides in `model.py`, a standalone module that a mobile develope
 ├── .gitignore
 ├── mimik_process.py  # Script to process synthetic data
 └── README.md               # This file
+
+## Setup Instructions
+
+1. **Clone or Prepare Directory**
+   ```bash
+   git clone https://github.com/Abdulrahman0044/go-safe.git
+
+1. **Configure Environment**
+   - Create `.env` in the root directory:
+
+   MIMIK_TOKEN=your-mimik-token-here
+   OPENAI_API_KEY=your-openai-api-key-here  # Optional
+   LANGCHAIN_TRACING_V2=true
+   LANGCHAIN_ENDPOINT="https://api.smith.langchain.com"
+   LANGCHAIN_API_KEY="replace with your actual api key"
+   LANGCHAIN_PROJECT="pr-reflecting-starter-78"
+
+1. **Generate Data (If Missing)**
+- **Synthetic Data**: If `synthetic_data.json` isn’t present, refer to earlier steps to generate it with Ollama/LangChain (not included here).
+- **Processed Data**: Run:
+```bash
+python simulate_mimik_processing.py
