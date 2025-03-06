@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GoSafe - Evacuation Planner</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 20px;
+            text-align: center;
+        }
+        input, button {
+            margin: 10px 0;
+            padding: 8px;
+            width: 80%;
+        }
+        #result {
+            margin-top: 20px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>GoSafe</h1>
+    <p>Get your evacuation plan fast!</p>
+    <form id="planForm">
+        <input type="text" id="query" name="query" placeholder="E.g., Evacuate from Downtown LA, fire on Highway 101" required>
+        <input type="text" id="needs" name="needs" placeholder="E.g., wheelchair (optional)">
+        <button type="submit">Get Plan</button>
+    </form>
+    <div id="result">Your plan will appear here.</div>
+
+    <script>
+        document.getElementById('planForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const query = document.getElementById('query').value;
+            const needs = document.getElementById('needs').value || 'none';
+            const response = await fetch('/plan', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query, needs })
+            });
+            const data = await response.json();
+            document.getElementById('result').textContent = data.plan;
+        });
+    </script>
+</body>
+</html>
