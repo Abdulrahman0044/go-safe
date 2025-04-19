@@ -1,6 +1,5 @@
-chromadb
-ollama
-langchain
-langchain-community
-langchain-openai
-python-dotenv
+flask==3.1.0
+langchain-community==0.3.18
+langchain-groq==0.2.4
+chromadb==0.6.3
+python-dotenv==1.0.1

@@ -4,48 +4,198 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GoSafe - Evacuation Planner</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDg2GfESba0j_NQgHmqlvmjh93ZVajnaWs&callback=initMap"></script>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 600px;
-            margin: 20px auto;
-            padding: 20px;
-            text-align: center;
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
-        input, button {
-            margin: 10px 0;
-            padding: 8px;
-            width: 80%;
-        }
-        #result {
-            margin-top: 20px;
-            font-weight: bold;
-        }
+        .fade-in { animation: fadeIn 0.5s ease-out; }
+        #map { height: 50%; width: 100%; border-radius: 8px; border: 2px solid #f97316; }
+        .chat-container { height: 70vh; overflow-y: auto; }
+        .steps-container { height: 30%; overflow-y: auto; }
     </style>
 </head>
-<body>
-    <h1>GoSafe</h1>
-    <p>Get your evacuation plan fast!</p>
-    <form id="planForm">
-        <input type="text" id="query" name="query" placeholder="E.g., Evacuate from Downtown LA, fire on Highway 101" required>
-        <input type="text" id="needs" name="needs" placeholder="E.g., wheelchair (optional)">
-        <button type="submit">Get Plan</button>
-    </form>
-    <div id="result">Your evacuation plan will appear here.</div>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-6">
+    <div class="container mx-auto max-w-5xl bg-white rounded-xl shadow-lg flex flex-col md:flex-row">
+        <!-- Left Column: Chatbot Interface -->
+        <div class="w-full md:w-1/2 p-6 flex flex-col">
+            <header class="text-center mb-6">
+                <h1 class="text-4xl font-bold text-orange-600 flex items-center justify-center gap-2">
+                    <i class="fas fa-fire-alt"></i> GoSafe
+                </h1>
+                <p class="text-gray-600 mt-2">Your offline-ready evacuation planner</p>
+            </header>
+
+            <form id="planForm" class="space-y-4">
+                <div>
+                    <label for="query" class="block text-sm font-medium text-gray-700">Where are you evacuating from?</label>
+                    <input 
+                        type="text" 
+                        id="query" 
+                        name="query" 
+                        class="mt-1 block w-full p-3 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500" 
+                        placeholder="E.g., Evacuate from Downtown LA with a fire on Highway 101" 
+                        required 
+                    >
+                </div>
+                <div>
+                    <label for="needs" class="block text-sm font-medium text-gray-700">Any special needs?</label>
+                    <input 
+                        type="text" 
+                        id="needs" 
+                        name="needs" 
+                        class="mt-1 block w-full p-3 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500" 
+                        placeholder="E.g., wheelchair (optional)" 
+                    >
+                </div>
+                <button 
+                    type="submit" 
+                    id="submitBtn" 
+                    class="w-full bg-orange-600 text-white p-3 rounded-md hover:bg-orange-700 transition duration-300 flex items-center justify-center gap-2"
+                >
+                    <i class="fas fa-map-signs"></i> Get Your Plan
+                </button>
+            </form>
+
+            <div id="result" class="mt-6 p-4 bg-gray-50 rounded-md text-gray-800 hidden fade-in chat-container">
+                <p id="planText" class="font-semibold whitespace-pre-line"></p>
+                <div id="loading" class="flex items-center justify-center gap-2 text-gray-500">
+                    <i class="fas fa-spinner fa-spin"></i> Loading your plan...
+                </div>
+            </div>
+
+            <footer class="mt-6 text-center text-gray-500 text-sm">
+                <p>Our mission is clear, to save lives.</p>
+            </footer>
+        </div>
+
+        <!-- Right Column: Map and Steps -->
+        <div class="w-full md:w-1/2 p-6 flex flex-col">
+            <div id="map" class="hidden"></div>
+            <div id="steps" class="mt-4 p-4 bg-gray-50 rounded-md text-gray-800 hidden fade-in steps-container">
+                <h3 class="text-lg font-bold text-orange-600 mb-2">Evacuation Plan</h3>
+                <ol id="stepsList" class="list-decimal list-inside space-y-2"></ol>
+            </div>
+        </div>
+    </div>
 
     <script>
-        document.getElementById('planForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const query = document.getElementById('query').value;
-            const needs = document.getElementById('needs').value || 'none';
-            const response = await fetch('/plan', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ query, needs })
+        let map, geocoder;
+
+        function initMap() {
+            map = new google.maps.Map(document.getElementById('map'), {
+                zoom: 8,
+                center: { lat: 34.0522, lng: -118.2437 } // Default: LA
             });
-            const data = await response.json();
-            document.getElementById('result').textContent = data.plan;
+            geocoder = new google.maps.Geocoder();
+        }
+
+        const form = document.getElementById('planForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const resultDiv = document.getElementById('result');
+        const planText = document.getElementById('planText');
+        const loadingDiv = document.getElementById('loading');
+        const mapDiv = document.getElementById('map');
+        const stepsDiv = document.getElementById('steps');
+        const stepsList = document.getElementById('stepsList');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const query = document.getElementById('query').value.trim();
+            const needs = document.getElementById('needs').value.trim() || 'none';
+
+            resultDiv.classList.remove('hidden');
+            planText.classList.add('hidden');
+            loadingDiv.classList.remove('hidden');
+            mapDiv.classList.add('hidden');
+            stepsDiv.classList.add('hidden');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+
+            try {
+                const response = await fetch('/plan', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query, needs })
+                });
+                const data = await response.json();
+
+                planText.textContent = data.plan;
+                planText.classList.remove('hidden');
+                loadingDiv.classList.add('hidden');
+
+                if (data.start && data.destination) {
+                    mapDiv.classList.remove('hidden');
+                    stepsDiv.classList.remove('hidden');
+                    displayMapWithMarkers(data);
+                } else {
+                    mapDiv.classList.add('hidden');
+                    stepsDiv.classList.add('hidden');
+                    planText.textContent += '\n\nNote: Unable to display map due to missing locations.';
+                }
+            } catch (error) {
+                planText.textContent = 'Oops! Something went wrong.';
+                planText.classList.remove('hidden');
+                loadingDiv.classList.add('hidden');
+                mapDiv.classList.add('hidden');
+                stepsDiv.classList.add('hidden');
+            }
+
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-map-signs"></i> Get Your Plan';
         });
+
+        function displayMapWithMarkers(data) {
+            stepsList.innerHTML = '';
+            const steps = data.plan.split('\n');
+            steps.forEach(step => {
+                const li = document.createElement('li');
+                li.textContent = step;
+                stepsList.appendChild(li);
+            });
+
+            const bounds = new google.maps.LatLngBounds();
+            let markersSet = 0;
+
+            // Geocode and mark start
+            geocoder.geocode({ address: data.start }, (results, status) => {
+                if (status === 'OK') {
+                    const startPos = results[0].geometry.location;
+                    new google.maps.Marker({
+                        position: startPos,
+                        map: map,
+                        title: "Start: " + data.start,
+                        icon: 'http://maps.google.com/mapfiles/ms/icons/green-dot.png'
+                    });
+                    bounds.extend(startPos);
+                    markersSet++;
+                    if (markersSet === 2) map.fitBounds(bounds);
+                } else {
+                    console.error('Geocode failed for start: ' + status);
+                }
+            });
+
+            // Geocode and mark destination
+            geocoder.geocode({ address: data.destination }, (results, status) => {
+                if (status === 'OK') {
+                    const destPos = results[0].geometry.location;
+                    new google.maps.Marker({
+                        position: destPos,
+                        map: map,
+                        title: "Destination: " + data.destination,
+                        icon: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png'
+                    });
+                    bounds.extend(destPos);
+                    markersSet++;
+                    if (markersSet === 2) map.fitBounds(bounds);
+                } else {
+                    console.error('Geocode failed for destination: ' + status);
+                }
+            });
+        }
     </script>
 </body>
 </html>

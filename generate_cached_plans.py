@@ -7,6 +7,14 @@ try:
 except FileNotFoundError:
     raise FileNotFoundError("processed_data.json not found. Run mimik processing step first.")
 
+def _format_plan(entry):
+    roads = entry["roads"]
+    safe_road = next((r for r in roads if entry["user_needs"] != "wheelchair" or r["accessible"]), roads[0])
+    return (
+        f"1. Start at {entry['user_location']}.\n"
+        f"2. Avoid {entry['fire_location']} by taking {safe_road['name']}.\n"
+        f"3. Proceed to {safe_road['safe_zone']} for safety."
+    )
 # Generate cached plans
 cached_plans = {}
 for entry in data:
@@ -24,7 +32,7 @@ for entry in data:
         )
         plan = f"Evacuate via {safe_road['name']} to {safe_road['safe_zone']}."
     
-    cached_plans[key] = plan
+    cached_plans[key] = _format_plan(entry)
 
 # Save to file
 cache_path = "./data/cached_plans.json"
